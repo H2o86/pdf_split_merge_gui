@@ -1,4 +1,7 @@
-# 📑 Modern PDF Page Splitter & Merger GUI
+<div align="center">
+  <img src="assets/icon.png" alt="PDF Splitter & Merger Icon" width="128" />
+  <h1>📑 Modern PDF Page Splitter & Merger GUI</h1>
+</div>
 
 Phần mềm Desktop GUI hiện đại bằng **Python (PyQt6 + PyMuPDF)** hỗ trợ nạp nhiều file PDF để **Tách trang tự động** và **Trộn/Ghép trang tùy chọn linh hoạt**. Hỗ trợ giao diện đa ngôn ngữ **Tiếng Việt 🇻🇳 & English 🇬🇧**.
 

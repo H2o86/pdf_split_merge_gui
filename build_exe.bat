@@ -11,7 +11,7 @@ python -m pip install -r requirements.txt
 
 echo.
 echo [2/2] Dang dong goi ung dung bang PyInstaller...
-pyinstaller --noconfirm --onedir --windowed --name "PDF_Splitter_Merger" --clean main.py
+pyinstaller --noconfirm --onedir --windowed --name "PDF_Splitter_Merger" --icon "assets/icon.ico" --add-data "assets;assets" --clean main.py
 
 echo.
 echo =======================================================

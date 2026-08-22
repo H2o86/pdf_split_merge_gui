@@ -16,6 +16,13 @@ from pdf_processor import (
 )
 from i18n import tr
 
+def get_resource_path(relative_path):
+    """Lấy đường dẫn tài nguyên tuyệt đối, tương thích khi đóng gói bằng PyInstaller"""
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
+
+
 # --- THREADS XỬ LÝ NỀN (BACKGROUND WORKERS) ---
 
 class ThumbnailWorker(QThread):
@@ -150,6 +157,11 @@ class MainWindow(QMainWindow):
         self.current_lang = "vi" # Mặc định: Tiếng Việt
         self.resize(1180, 820)
         self.setMinimumSize(950, 680)
+
+        # Thiết lập Icon ứng dụng
+        icon_path = get_resource_path(os.path.join("assets", "icon.ico"))
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
 
         # Hỗ trợ Kéo & Thả file
         self.setAcceptDrops(True)
