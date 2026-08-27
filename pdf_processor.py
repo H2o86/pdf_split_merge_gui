@@ -122,12 +122,20 @@ def split_pdf_pages(pdf_path, output_dir, file_pattern="{name}_trang_{page}.pdf"
             file_name += ".pdf"
             
         out_path = os.path.join(target_dir, file_name)
+        temp_out_path = out_path + ".tmp"
         
         # Tạo file PDF mới với 1 trang
         new_doc = fitz.open()
         new_doc.insert_pdf(doc, from_page=page_num, to_page=page_num)
-        new_doc.save(out_path)
+        new_doc.save(temp_out_path)
         new_doc.close()
+        
+        if os.path.exists(out_path):
+            try:
+                os.remove(out_path)
+            except Exception:
+                pass
+        os.replace(temp_out_path, out_path)
         
         created_files.append(out_path)
         
@@ -151,9 +159,8 @@ def merge_custom_pages(page_items, output_pdf_path, progress_callback=None):
         os.makedirs(out_dir, exist_ok=True)
         
     merged_doc = fitz.open()
-    
-    # Cache các file doc mở sẵn để tối ưu tốc độ
     cached_docs = {}
+    temp_output_path = output_pdf_path + ".tmp.pdf"
     
     try:
         total_items = len(page_items)
@@ -172,9 +179,31 @@ def merge_custom_pages(page_items, output_pdf_path, progress_callback=None):
                 file_basename = os.path.basename(src_path)
                 progress_callback(idx + 1, total_items, f"{file_basename} (Trang {page_idx + 1})")
                 
-        merged_doc.save(output_pdf_path)
-        return output_pdf_path
+        merged_doc.save(temp_output_path)
     finally:
         merged_doc.close()
         for d in cached_docs.values():
-            d.close()
+            try:
+                d.close()
+            except Exception:
+                pass
+
+    # Sau khi ĐÃ ĐÓNG TẤT CẢ FILE LOCK, thực hiện thay thế (overwrite) an toàn
+    try:
+        if os.path.exists(output_pdf_path):
+            try:
+                os.remove(output_pdf_path)
+            except Exception:
+                pass
+        os.replace(temp_output_path, output_pdf_path)
+        return output_pdf_path
+    except Exception as e:
+        if os.path.exists(temp_output_path):
+            try:
+                os.remove(temp_output_path)
+            except Exception:
+                pass
+        raise PermissionError(
+            f"Không thể ghi đè file '{os.path.basename(output_pdf_path)}'. "
+            f"Vui lòng đóng file này nếu đang mở trong phần mềm đọc PDF khác (Acrobat/Foxit/Browser) và thử lại.\n(Chi tiết lỗi: {e})"
+        )

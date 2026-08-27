@@ -52,6 +52,16 @@ def test_workflow():
     print("Thông tin file đã ghép:", info_merged)
     assert info_merged["page_count"] == 3
     
+    # 4. Kiểm tra Ghép và GHI ĐÈ trực tiếp lên chính 1 trong các file nguồn
+    overwrite_items = [
+        {"pdf_path": sample1, "page_index": 0},
+        {"pdf_path": sample2, "page_index": 0},
+    ]
+    merge_custom_pages(overwrite_items, sample1)
+    info_overwritten = get_pdf_info(sample1)
+    print("Thông tin file sau khi ghi đè:", info_overwritten)
+    assert info_overwritten["page_count"] == 2
+    
     print("\n✅ TẤT CẢ CÁC BƯỚC TEST BACKEND PDF ĐỀU THÀNH CÔNG VÀ CHÍNH XÁC!")
 
 if __name__ == "__main__":
