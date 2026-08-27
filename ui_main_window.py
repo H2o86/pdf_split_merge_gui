@@ -425,16 +425,28 @@ class MainWindow(QMainWindow):
         self.list_merge_queue.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         right_layout.addWidget(self.list_merge_queue)
 
-        # Cấu hình file đầu ra ghép
-        h_out_merge = QHBoxLayout()
-        self.lbl_merge_output = QLabel()
-        self.txt_merge_output_path = QLineEdit(os.path.join(os.path.expanduser("~"), "Desktop", "PDF_Ghep_KetQua.pdf"))
-        self.btn_browse_merge_out = QPushButton()
-        self.btn_browse_merge_out.clicked.connect(self.on_browse_merge_outpath)
-        h_out_merge.addWidget(self.lbl_merge_output)
-        h_out_merge.addWidget(self.txt_merge_output_path, stretch=1)
-        h_out_merge.addWidget(self.btn_browse_merge_out)
-        right_layout.addLayout(h_out_merge)
+        # Group Cấu hình thư mục lưu & tên file đầu ra ghép
+        self.group_merge_out = QGroupBox()
+        group_merge_out_layout = QVBoxLayout(self.group_merge_out)
+
+        h_merge_outdir = QHBoxLayout()
+        self.lbl_merge_outdir = QLabel()
+        self.txt_merge_outdir = QLineEdit(os.path.join(os.path.expanduser("~"), "Desktop", "PDF_Ghep"))
+        self.btn_browse_merge_dir = QPushButton()
+        self.btn_browse_merge_dir.clicked.connect(self.on_browse_merge_outdir)
+        h_merge_outdir.addWidget(self.lbl_merge_outdir)
+        h_merge_outdir.addWidget(self.txt_merge_outdir, stretch=1)
+        h_merge_outdir.addWidget(self.btn_browse_merge_dir)
+        group_merge_out_layout.addLayout(h_merge_outdir)
+
+        h_merge_filename = QHBoxLayout()
+        self.lbl_merge_filename = QLabel()
+        self.txt_merge_filename = QLineEdit("PDF_Ghep_KetQua.pdf")
+        h_merge_filename.addWidget(self.lbl_merge_filename)
+        h_merge_filename.addWidget(self.txt_merge_filename, stretch=1)
+        group_merge_out_layout.addLayout(h_merge_filename)
+
+        right_layout.addWidget(self.group_merge_out)
 
         # Progress bar ghép
         self.progress_merge = QProgressBar()
@@ -445,11 +457,20 @@ class MainWindow(QMainWindow):
         self.lbl_merge_status.setStyleSheet("font-weight: bold; color: #1f2937;")
         right_layout.addWidget(self.lbl_merge_status)
 
+        h_btn_merge_act = QHBoxLayout()
         self.btn_run_merge = QPushButton()
         self.btn_run_merge.setObjectName("accentBtn")
         self.btn_run_merge.setMinimumHeight(45)
         self.btn_run_merge.clicked.connect(self.on_run_merge)
-        right_layout.addWidget(self.btn_run_merge)
+
+        self.btn_open_merge_dir = QPushButton()
+        self.btn_open_merge_dir.setMinimumHeight(45)
+        self.btn_open_merge_dir.setEnabled(False)
+        self.btn_open_merge_dir.clicked.connect(self.on_open_merge_dir)
+
+        h_btn_merge_act.addWidget(self.btn_run_merge, stretch=2)
+        h_btn_merge_act.addWidget(self.btn_open_merge_dir, stretch=1)
+        right_layout.addLayout(h_btn_merge_act)
 
         splitter.addWidget(right_widget)
         splitter.setSizes([650, 450])
@@ -513,10 +534,13 @@ class MainWindow(QMainWindow):
         self.btn_clear_queue.setText(tr(c, "btn_clear_queue"))
         self.txt_quick_range.setPlaceholderText(tr(c, "placeholder_quick_range"))
         self.btn_add_range.setText(tr(c, "btn_add_range"))
-        self.lbl_merge_output.setText(tr(c, "lbl_merge_output"))
-        self.btn_browse_merge_out.setText(tr(c, "btn_browse"))
+        self.group_merge_out.setTitle(tr(c, "merge_config_group"))
+        self.lbl_merge_outdir.setText(tr(c, "lbl_merge_outdir"))
+        self.btn_browse_merge_dir.setText(tr(c, "btn_browse"))
+        self.lbl_merge_filename.setText(tr(c, "lbl_merge_filename"))
         self.lbl_merge_status.setText(tr(c, "lbl_status_merge_ready"))
         self.btn_run_merge.setText(tr(c, "btn_run_merge"))
+        self.btn_open_merge_dir.setText(tr(c, "btn_open_merge_dir"))
 
         self.update_file_table()
         self.refresh_pdf_combobox()
@@ -854,10 +878,17 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, tr(self.current_lang, "msg_warning"), "Thư mục đầu ra chưa được tạo!")
 
     # --- SỰ KIỆN GHÉP TRANG ---
-    def on_browse_merge_outpath(self):
-        path, _ = QFileDialog.getSaveFileName(self, tr(self.current_lang, "lbl_merge_output"), "PDF_Merged_Output.pdf", "File PDF (*.pdf)")
-        if path:
-            self.txt_merge_output_path.setText(path)
+    def on_browse_merge_outdir(self):
+        dir_path = QFileDialog.getExistingDirectory(self, tr(self.current_lang, "lbl_out_dir"))
+        if dir_path:
+            self.txt_merge_outdir.setText(dir_path)
+
+    def on_open_merge_dir(self):
+        out_dir = self.txt_merge_outdir.text().strip()
+        if os.path.exists(out_dir):
+            os.startfile(out_dir)
+        else:
+            QMessageBox.warning(self, tr(self.current_lang, "msg_warning"), "Thư mục đầu ra chưa được tạo!")
 
     def on_run_merge(self):
         c = self.current_lang
@@ -865,13 +896,19 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, tr(c, "msg_warning"), tr(c, "msg_merge_empty"))
             return
 
-        out_path = self.txt_merge_output_path.text().strip()
-        if not out_path:
+        out_dir = self.txt_merge_outdir.text().strip()
+        if not out_dir:
             QMessageBox.warning(self, tr(c, "msg_warning"), tr(c, "msg_select_outdir"))
             return
 
-        if not out_path.lower().endswith(".pdf"):
-            out_path += ".pdf"
+        filename = self.txt_merge_filename.text().strip()
+        if not filename:
+            filename = "PDF_Ghep_KetQua.pdf"
+
+        if not filename.lower().endswith(".pdf"):
+            filename += ".pdf"
+
+        out_path = os.path.join(out_dir, filename)
 
         page_items = []
         for i in range(self.list_merge_queue.count()):
@@ -896,6 +933,7 @@ class MainWindow(QMainWindow):
     def on_merge_finished(self, out_path):
         c = self.current_lang
         self.btn_run_merge.setEnabled(True)
+        self.btn_open_merge_dir.setEnabled(True)
         self.progress_merge.setValue(100)
         
         msg_str = tr(c, "msg_merge_complete", count=self.list_merge_queue.count(), path=out_path)
