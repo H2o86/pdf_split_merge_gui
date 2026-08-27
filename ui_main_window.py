@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QSplitter, QListWidget, QListWidgetItem, QAbstractItemView, QDialog,
     QScrollArea, QComboBox, QFrame, QStyleFactory
 )
-from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal, QRect
+from PyQt6.QtCore import Qt, QSize, QThread, pyqtSignal, QRect, QSettings
 from PyQt6.QtGui import QIcon, QPixmap, QImage, QColor, QFont, QDragEnterEvent, QDropEvent
 
 from pdf_processor import (
@@ -169,9 +169,30 @@ class MainWindow(QMainWindow):
         self.loaded_files = []
         self.thumbnail_cache = {}
 
+        # Cấu hình Thư mục Output Cố định & Nhớ qua QSettings
+        self.settings = QSettings("PDFTool", "SplitterMerger")
+        default_dir = os.path.join(os.path.expanduser("~"), "Desktop", "PDF_Output")
+        self.output_dir = self.settings.value("output_dir", default_dir)
+
         self.setup_ui()
         self.apply_stylesheet()
         self.retranslate_ui()
+
+    def update_output_dir(self, new_dir):
+        if not new_dir:
+            return
+        self.output_dir = new_dir
+        self.settings.setValue("output_dir", new_dir)
+
+        if hasattr(self, 'txt_split_outdir') and self.txt_split_outdir.text() != new_dir:
+            self.txt_split_outdir.blockSignals(True)
+            self.txt_split_outdir.setText(new_dir)
+            self.txt_split_outdir.blockSignals(False)
+
+        if hasattr(self, 'txt_merge_outdir') and self.txt_merge_outdir.text() != new_dir:
+            self.txt_merge_outdir.blockSignals(True)
+            self.txt_merge_outdir.setText(new_dir)
+            self.txt_merge_outdir.blockSignals(False)
 
     def setup_ui(self):
         central_widget = QWidget()
@@ -261,7 +282,8 @@ class MainWindow(QMainWindow):
 
         h1 = QHBoxLayout()
         self.lbl_out_dir = QLabel()
-        self.txt_split_outdir = QLineEdit(os.path.join(os.path.expanduser("~"), "Desktop", "PDF_Tach_Trang"))
+        self.txt_split_outdir = QLineEdit(self.output_dir)
+        self.txt_split_outdir.textChanged.connect(self.on_split_outdir_changed)
         self.btn_browse_dir = QPushButton()
         self.btn_browse_dir.clicked.connect(self.on_browse_split_outdir)
         h1.addWidget(self.lbl_out_dir)
@@ -431,7 +453,8 @@ class MainWindow(QMainWindow):
 
         h_merge_outdir = QHBoxLayout()
         self.lbl_merge_outdir = QLabel()
-        self.txt_merge_outdir = QLineEdit(os.path.join(os.path.expanduser("~"), "Desktop", "PDF_Ghep"))
+        self.txt_merge_outdir = QLineEdit(self.output_dir)
+        self.txt_merge_outdir.textChanged.connect(self.on_merge_outdir_changed)
         self.btn_browse_merge_dir = QPushButton()
         self.btn_browse_merge_dir.clicked.connect(self.on_browse_merge_outdir)
         h_merge_outdir.addWidget(self.lbl_merge_outdir)
@@ -442,8 +465,11 @@ class MainWindow(QMainWindow):
         h_merge_filename = QHBoxLayout()
         self.lbl_merge_filename = QLabel()
         self.txt_merge_filename = QLineEdit("PDF_Ghep_KetQua.pdf")
+        self.btn_select_existing_file = QPushButton()
+        self.btn_select_existing_file.clicked.connect(self.on_select_existing_merge_file)
         h_merge_filename.addWidget(self.lbl_merge_filename)
         h_merge_filename.addWidget(self.txt_merge_filename, stretch=1)
+        h_merge_filename.addWidget(self.btn_select_existing_file)
         group_merge_out_layout.addLayout(h_merge_filename)
 
         right_layout.addWidget(self.group_merge_out)
@@ -538,6 +564,7 @@ class MainWindow(QMainWindow):
         self.lbl_merge_outdir.setText(tr(c, "lbl_merge_outdir"))
         self.btn_browse_merge_dir.setText(tr(c, "btn_browse"))
         self.lbl_merge_filename.setText(tr(c, "lbl_merge_filename"))
+        self.btn_select_existing_file.setText(tr(c, "btn_select_existing"))
         self.lbl_merge_status.setText(tr(c, "lbl_status_merge_ready"))
         self.btn_run_merge.setText(tr(c, "btn_run_merge"))
         self.btn_open_merge_dir.setText(tr(c, "btn_open_merge_dir"))
@@ -870,6 +897,19 @@ class MainWindow(QMainWindow):
         self.lbl_split_status.setText(f"❌ Error: {err_msg}")
         QMessageBox.critical(self, tr(c, "msg_error"), f"Split failed: {err_msg}")
 
+    def on_split_outdir_changed(self, text):
+        if text.strip():
+            self.update_output_dir(text.strip())
+
+    def on_merge_outdir_changed(self, text):
+        if text.strip():
+            self.update_output_dir(text.strip())
+
+    def on_browse_split_outdir(self):
+        dir_path = QFileDialog.getExistingDirectory(self, tr(self.current_lang, "lbl_out_dir"), self.output_dir)
+        if dir_path:
+            self.update_output_dir(dir_path)
+
     def on_open_split_dir(self):
         out_dir = self.txt_split_outdir.text().strip()
         if os.path.exists(out_dir):
@@ -879,9 +919,23 @@ class MainWindow(QMainWindow):
 
     # --- SỰ KIỆN GHÉP TRANG ---
     def on_browse_merge_outdir(self):
-        dir_path = QFileDialog.getExistingDirectory(self, tr(self.current_lang, "lbl_out_dir"))
+        dir_path = QFileDialog.getExistingDirectory(self, tr(self.current_lang, "lbl_out_dir"), self.output_dir)
         if dir_path:
-            self.txt_merge_outdir.setText(dir_path)
+            self.update_output_dir(dir_path)
+
+    def on_select_existing_merge_file(self):
+        current_dir = self.output_dir if os.path.exists(self.output_dir) else os.path.expanduser("~")
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            tr(self.current_lang, "btn_select_existing"),
+            os.path.join(current_dir, self.txt_merge_filename.text().strip() or "PDF_Merged.pdf"),
+            "File PDF (*.pdf)"
+        )
+        if file_path:
+            chosen_dir = os.path.dirname(file_path)
+            chosen_filename = os.path.basename(file_path)
+            self.txt_merge_filename.setText(chosen_filename)
+            self.update_output_dir(chosen_dir)
 
     def on_open_merge_dir(self):
         out_dir = self.txt_merge_outdir.text().strip()
